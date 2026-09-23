@@ -36,21 +36,13 @@ namespace ResoniteUnityExporter
 
         }
 
-        // Purely-reflective, optional NDMF (Modular Avatar) integration - no compile-time reference
-        // to nadena.dev.ndmf at all, so this package doesn't require NDMF to be installed just to
-        // load. Works correctly whether or not NDMF happens to be present in the consuming project.
+        // Optional NDMF cleanup without a compile-time dependency.
         static class OptionalNdmf
         {
             static readonly Type avatarProcessorType = Type.GetType("nadena.dev.ndmf.AvatarProcessor, nadena.dev.ndmf.runtime")
                 ?? AppDomain.CurrentDomain.GetAssemblies()
                     .Select(a => a.GetType("nadena.dev.ndmf.AvatarProcessor"))
                     .FirstOrDefault(t => t != null);
-
-            public static void ProcessAvatar(GameObject avatarRoot)
-            {
-                avatarProcessorType?.GetMethod("ProcessAvatar", BindingFlags.Public | BindingFlags.Static)
-                    ?.Invoke(null, new object[] { avatarRoot });
-            }
 
             public static void CleanTemporaryAssets()
             {
@@ -86,19 +78,21 @@ namespace ResoniteUnityExporter
             bool duplicated = false;
             bool ranPreprocess = false;
             
-            // need to run VRChat initializer
+            try
+            {
+                // The VRChat preprocess callbacks already run NDMF's build hooks when
+                // NDMF is installed. Processing this clone again duplicates those passes.
 #if RUE_HAS_VRCSDK
             if (rootTransform != null && settings.makeAvatar && ResoniteTransferUtils.IsAvatarsSDKAvailable())
             {
                 // duplicate it
                 Transform prev = rootTransform;
+                this.rootTransform = rootTransform = UnityEngine.Object.Instantiate(rootTransform);
                 duplicated = true;
                 ranPreprocess = true;
-                this.rootTransform = rootTransform = UnityEngine.Object.Instantiate(rootTransform);
                 rootTransform.name = prev.name;
 
                 VRC.SDKBase.Editor.BuildPipeline.VRCBuildPipelineCallbacks.OnPreprocessAvatar(rootTransform.gameObject);
-                OptionalNdmf.ProcessAvatar(rootTransform.gameObject);
             }
             else if(!settings.makeAvatar)
             {
@@ -127,8 +121,6 @@ namespace ResoniteUnityExporter
             }
 
 
-            try
-            {
                 ResoniteUnityExporterEditorWindow.DebugProgressStringDetail = "";
                 ResoniteUnityExporterEditorWindow.DebugProgressString = "Copying hierarchy";
                 yield return null;
@@ -259,26 +251,30 @@ namespace ResoniteUnityExporter
             }
             finally
             {
-#if RUE_HAS_VRCSDK
-                if (ranPreprocess)
+                try
                 {
-                    if (settings.makeAvatar)
+#if RUE_HAS_VRCSDK
+                    if (ranPreprocess)
                     {
-                        VRC.SDKBase.Editor.BuildPipeline.VRCBuildPipelineCallbacks.OnPostprocessAvatar();
-                        OptionalNdmf.CleanTemporaryAssets();
+                        if (settings.makeAvatar)
+                        {
+                            VRC.SDKBase.Editor.BuildPipeline.VRCBuildPipelineCallbacks.OnPostprocessAvatar();
+                            OptionalNdmf.CleanTemporaryAssets();
+                        }
+                        else
+                        {
+                            VRC.SDKBase.Editor.BuildPipeline.VRCBuildPipelineCallbacks.OnPostprocessScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
+                        }
                     }
-                    else
-                    {
-
-                        VRC.SDKBase.Editor.BuildPipeline.VRCBuildPipelineCallbacks.OnPostprocessScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
-                    }
+#endif
+                }
+                finally
+                {
                     if (this.rootTransform != null && duplicated)
                     {
                         GameObject.DestroyImmediate(this.rootTransform.gameObject);
                     }
                 }
-#endif
-
             }
         }
 

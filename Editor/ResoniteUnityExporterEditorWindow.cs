@@ -81,10 +81,11 @@ namespace ResoniteUnityExporter
         {
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
-                GUILayout.Label("Standalone Exporter (optional - skip this if you're using the Mod, or already have the Standalone running)", EditorStyles.boldLabel);
+                GUILayout.Label("Standalone Exporter (optional)", EditorStyles.boldLabel);
+                GUILayout.Label("Connect through the Standalone exporter or its Resonite mod. ResoniteLink uses a different connection.", EditorStyles.wordWrappedLabel);
 
                 EditorGUILayout.BeginHorizontal();
-                EditorGUILayout.LabelField("Resonite executable", GUILayout.Width(140));
+                EditorGUILayout.LabelField("Resonite executable", GUILayout.Width(180));
                 string newResonitePath = EditorGUILayout.TextField(resoniteExePath);
                 if (newResonitePath != resoniteExePath)
                 {
@@ -107,7 +108,7 @@ namespace ResoniteUnityExporter
                 EditorGUILayout.EndHorizontal();
 
                 EditorGUILayout.BeginHorizontal();
-                EditorGUILayout.LabelField("Standalone project/binary", GUILayout.Width(140));
+                EditorGUILayout.LabelField("Standalone project/binary", GUILayout.Width(180));
                 string newStandalonePath = EditorGUILayout.TextField(standaloneProjectPath);
                 if (newStandalonePath != standaloneProjectPath)
                 {
@@ -205,7 +206,7 @@ namespace ResoniteUnityExporter
 
         public static ResoniteBridgeClient bridgeClient;
 
-        static int windowWidth = 560;
+        static int windowWidth = 640;
         static int windowHeight = 680;
 
         // Add menu item named "My Custom Window" to the Window menu
@@ -215,7 +216,7 @@ namespace ResoniteUnityExporter
             // Get existing open window or if none, make a new one
             var window = EditorWindow.GetWindow(typeof(ResoniteUnityExporterEditorWindow));
             window.minSize = new UnityEngine.Vector2(windowWidth, windowHeight); // Minimum size
-            window.maxSize = new UnityEngine.Vector2(windowWidth, windowHeight); // Maximum size (same as min for fixed size)
+            window.maxSize = new UnityEngine.Vector2(10000, 10000);
         }
 
 
@@ -226,7 +227,7 @@ namespace ResoniteUnityExporter
             AssemblyReloadEvents.afterAssemblyReload += OnAfterAssemblyReload;
             titleContent = new GUIContent("Resonite Unity Exporter");
             minSize = new UnityEngine.Vector2(windowWidth, windowHeight);
-            maxSize = new UnityEngine.Vector2(windowWidth, windowHeight);
+            maxSize = new UnityEngine.Vector2(10000, 10000);
             LoadStandaloneLauncherPrefs();
         }
 
@@ -593,7 +594,7 @@ namespace ResoniteUnityExporter
             }
             GUILayout.Label(foundHead ? "Found head" : "Could not find any object with 'head' in name (not case sensitive)");
             nearClip = EditorGUILayout.Slider("Near clip", nearClip, 0.001f, 0.5f); // min is 0, max is 1
-            GUILayout.Label("Make near clip as small as possible, yet large enough so nothing is in the way");
+            GUILayout.Label("Make near clip as small as possible, yet large enough so nothing is in the way", EditorStyles.wordWrappedLabel);
             // Draw texture
             Rect rect = EditorGUILayout.GetControlRect(false, headViewTex.height);
             DrawTextureCenter(headViewTex, rect);
@@ -763,7 +764,7 @@ namespace ResoniteUnityExporter
             {
                 GUILayout.Label(progressLabel);
                 GUILayout.Label(DebugProgressString);
-                GUILayout.Label(DebugProgressStringDetail);
+                GUILayout.Label(DebugProgressStringDetail, EditorStyles.wordWrappedLabel);
             }
         }
 
@@ -912,6 +913,7 @@ namespace ResoniteUnityExporter
             EditorGUILayout.EndScrollView();
         }
 
+        UnityEngine.Vector2 windowScrollPosition;
         bool multipleAvatarsSelected = false;
 
         void OnGUI()
@@ -946,6 +948,7 @@ namespace ResoniteUnityExporter
             }
 #endif
 
+            windowScrollPosition = EditorGUILayout.BeginScrollView(windowScrollPosition);
             DrawTitle();
 
             DrawConnectedStatus();
@@ -980,7 +983,7 @@ namespace ResoniteUnityExporter
             {
                 multipleAvatarsSelected = false;
             }
-            GUILayout.Label(labelText);
+            GUILayout.Label(labelText, EditorStyles.wordWrappedLabel);
             GUI.color = Color.white;
             bool prevSendingAvatar = EditorPrefs.GetBool("R2USendingAvatar", sendingAvatar);
             sendingAvatar = prevSendingAvatar;
@@ -1030,6 +1033,7 @@ namespace ResoniteUnityExporter
                     DrawMaterialMappings();
                     break;
             }
+            EditorGUILayout.EndScrollView();
 
 
 
