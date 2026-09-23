@@ -61,6 +61,94 @@ namespace ResoniteUnityExporter
 
         const string STANDALONE_LABEL = "Standalone";
 
+        // Native-Unity replacement for the old WinForms OpenFileDialog that used to live inside
+        // ResoniteUnityExporterStandalone.exe. EditorUtility.OpenFilePanel is cross-platform
+        // (works on Linux/Mac too), so the Standalone process no longer needs any GUI toolkit of
+        // its own - Unity does the picking and just hands it the path.
+        const string RESONITE_EXE_PATH_PREF = "RUE_ResoniteExePath";
+        const string STANDALONE_PROJECT_PATH_PREF = "RUE_StandaloneProjectPath";
+        string resoniteExePath = "";
+        string standaloneProjectPath = "";
+        System.Diagnostics.Process standaloneProcess;
+
+        void LoadStandaloneLauncherPrefs()
+        {
+            resoniteExePath = EditorPrefs.GetString(RESONITE_EXE_PATH_PREF, "");
+            standaloneProjectPath = EditorPrefs.GetString(STANDALONE_PROJECT_PATH_PREF, "");
+        }
+
+        void DrawStandaloneLauncher()
+        {
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                GUILayout.Label("Standalone Exporter (optional - skip this if you're using the Mod, or already have the Standalone running)", EditorStyles.boldLabel);
+
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Resonite executable", GUILayout.Width(140));
+                string newResonitePath = EditorGUILayout.TextField(resoniteExePath);
+                if (newResonitePath != resoniteExePath)
+                {
+                    resoniteExePath = newResonitePath;
+                    EditorPrefs.SetString(RESONITE_EXE_PATH_PREF, resoniteExePath);
+                }
+                if (GUILayout.Button("Browse...", GUILayout.Width(80)))
+                {
+                    string startDir = File.Exists(resoniteExePath)
+                        ? Path.GetDirectoryName(resoniteExePath)
+                        : "";
+                    // empty extension filter so this also works for a plain "Resonite" binary on Linux/Mac
+                    string picked = EditorUtility.OpenFilePanel("Select the Resonite executable", startDir, "");
+                    if (!string.IsNullOrEmpty(picked))
+                    {
+                        resoniteExePath = picked;
+                        EditorPrefs.SetString(RESONITE_EXE_PATH_PREF, resoniteExePath);
+                    }
+                }
+                EditorGUILayout.EndHorizontal();
+
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Standalone project/binary", GUILayout.Width(140));
+                string newStandalonePath = EditorGUILayout.TextField(standaloneProjectPath);
+                if (newStandalonePath != standaloneProjectPath)
+                {
+                    standaloneProjectPath = newStandalonePath;
+                    EditorPrefs.SetString(STANDALONE_PROJECT_PATH_PREF, standaloneProjectPath);
+                }
+                if (GUILayout.Button("Browse...", GUILayout.Width(80)))
+                {
+                    // let them pick either the .csproj (dev/source checkout) or a published executable
+                    string picked = EditorUtility.OpenFilePanel("Select ResoniteUnityExporterStandalone.csproj or its published binary", standaloneProjectPath, "");
+                    if (!string.IsNullOrEmpty(picked))
+                    {
+                        standaloneProjectPath = picked;
+                        EditorPrefs.SetString(STANDALONE_PROJECT_PATH_PREF, standaloneProjectPath);
+                    }
+                }
+                EditorGUILayout.EndHorizontal();
+
+                bool canLaunch = File.Exists(resoniteExePath) && File.Exists(standaloneProjectPath);
+                bool alreadyRunning = standaloneProcess != null && !standaloneProcess.HasExited;
+
+                EditorGUI.BeginDisabledGroup(!canLaunch || alreadyRunning);
+                if (GUILayout.Button(alreadyRunning ? "Standalone is running..." : "Launch Standalone Exporter"))
+                {
+                    bool isProject = standaloneProjectPath.EndsWith(".csproj");
+                    var startInfo = isProject
+                        ? new System.Diagnostics.ProcessStartInfo("dotnet", "run --project \"" + standaloneProjectPath + "\" -- \"" + resoniteExePath + "\"")
+                        : new System.Diagnostics.ProcessStartInfo(standaloneProjectPath, "\"" + resoniteExePath + "\"");
+                    startInfo.UseShellExecute = false;
+                    startInfo.CreateNoWindow = false;
+                    standaloneProcess = System.Diagnostics.Process.Start(startInfo);
+                }
+                EditorGUI.EndDisabledGroup();
+                if (!canLaunch)
+                {
+                    GUILayout.Label("Set both paths above to enable launching.");
+                }
+            }
+            EditorGUILayout.Space(5);
+        }
+
 
         public static int TotalTransferObjectCount = 0;
         public static int PrevCurTransferObjectCount = 0;
@@ -139,6 +227,7 @@ namespace ResoniteUnityExporter
             titleContent = new GUIContent("Resonite Unity Exporter");
             minSize = new UnityEngine.Vector2(windowWidth, windowHeight);
             maxSize = new UnityEngine.Vector2(windowWidth, windowHeight);
+            LoadStandaloneLauncherPrefs();
         }
 
         void OnDisable()
@@ -860,6 +949,12 @@ namespace ResoniteUnityExporter
             DrawTitle();
 
             DrawConnectedStatus();
+
+            bool connected = bridgeClient.publisher.NumActiveConnections() > 0 && bridgeClient.subscriber.NumActiveConnections() > 0;
+            if (!connected)
+            {
+                DrawStandaloneLauncher();
+            }
 
             exportSlotName = EditorGUILayout.TextField("Avatar/World Name", exportSlotName);
             EditorGUILayout.BeginHorizontal();

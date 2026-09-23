@@ -36,6 +36,29 @@ namespace ResoniteUnityExporter
 
         }
 
+        // Purely-reflective, optional NDMF (Modular Avatar) integration - no compile-time reference
+        // to nadena.dev.ndmf at all, so this package doesn't require NDMF to be installed just to
+        // load. Works correctly whether or not NDMF happens to be present in the consuming project.
+        static class OptionalNdmf
+        {
+            static readonly Type avatarProcessorType = Type.GetType("nadena.dev.ndmf.AvatarProcessor, nadena.dev.ndmf.runtime")
+                ?? AppDomain.CurrentDomain.GetAssemblies()
+                    .Select(a => a.GetType("nadena.dev.ndmf.AvatarProcessor"))
+                    .FirstOrDefault(t => t != null);
+
+            public static void ProcessAvatar(GameObject avatarRoot)
+            {
+                avatarProcessorType?.GetMethod("ProcessAvatar", BindingFlags.Public | BindingFlags.Static)
+                    ?.Invoke(null, new object[] { avatarRoot });
+            }
+
+            public static void CleanTemporaryAssets()
+            {
+                avatarProcessorType?.GetMethod("CleanTemporaryAssets", BindingFlags.Public | BindingFlags.Static)
+                    ?.Invoke(null, null);
+            }
+        }
+
         static Type ThisStaticType()
         {
             // cursed shit to get typeof(this.GetType()) except for static methods
@@ -75,9 +98,7 @@ namespace ResoniteUnityExporter
                 rootTransform.name = prev.name;
 
                 VRC.SDKBase.Editor.BuildPipeline.VRCBuildPipelineCallbacks.OnPreprocessAvatar(rootTransform.gameObject);
-#if RUE_HAS_NDMF
-                nadena.dev.ndmf.AvatarProcessor.ProcessAvatar(rootTransform.gameObject);
-#endif
+                OptionalNdmf.ProcessAvatar(rootTransform.gameObject);
             }
             else if(!settings.makeAvatar)
             {
@@ -244,9 +265,7 @@ namespace ResoniteUnityExporter
                     if (settings.makeAvatar)
                     {
                         VRC.SDKBase.Editor.BuildPipeline.VRCBuildPipelineCallbacks.OnPostprocessAvatar();
-#if RUE_HAS_NDMF
-                    nadena.dev.ndmf.AvatarProcessor.CleanTemporaryAssets();
-#endif
+                        OptionalNdmf.CleanTemporaryAssets();
                     }
                     else
                     {

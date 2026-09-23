@@ -3,8 +3,7 @@
   "rootNamespace": "global::ResoniteUnityExporter",
   "references": [
     "VRC.Core",
-    "VRC.SDK3.Avatars",
-    "nadena.dev.ndmf"
+    "VRC.SDK3.Avatars"
   ],
   "includePlatforms": [
     "Editor"
@@ -25,11 +24,6 @@
       "name": "com.vrchat.avatars",
       "expression": "",
       "define": "RUE_HAS_AVATAR_VRCSDK"
-    },
-    {
-      "name": "nadena.dev.ndmf",
-      "expression": "",
-      "define": "RUE_HAS_NDMF"
     }
   ],
   "noEngineReferences": false
