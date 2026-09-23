@@ -26,6 +26,7 @@ namespace ResoniteUnityExporter
         public Dictionary<int, string> materialMappings;
         public bool makePackage;
         public bool includeAssetVariantsInPackage;
+        public bool enableInactiveRenderers;
     }
     public class ResoniteTransferManager
     {
@@ -101,6 +102,32 @@ namespace ResoniteUnityExporter
                 //ranPreprocess = true;
             }
 #endif
+
+            // Preserve the source avatar: when requested, activate disabled renderer
+            // objects only on an export clone so hidden clothing is included and visible
+            // in Resonite without changing the Unity scene.
+            if (rootTransform != null && settings.enableInactiveRenderers)
+            {
+                if (!duplicated)
+                {
+                    Transform prev = rootTransform;
+                    rootTransform = UnityEngine.Object.Instantiate(rootTransform);
+                    duplicated = true;
+                    rootTransform.name = prev.name;
+                    this.rootTransform = rootTransform;
+                }
+
+                foreach (Renderer renderer in rootTransform.GetComponentsInChildren<Renderer>(true))
+                {
+                    Transform current = renderer.transform;
+                    while (current != null)
+                    {
+                        current.gameObject.SetActive(true);
+                        if (current == rootTransform) break;
+                        current = current.parent;
+                    }
+                }
+            }
 
             if (rootTransform != null && settings.makeAvatar && settings.renameSlots)
             {
@@ -290,7 +317,7 @@ namespace ResoniteUnityExporter
                 // otherwise, just do the given object as root
                 : new GameObject[] { rootTransform.gameObject };
 
-            return gameObjects.SelectMany(g => g.GetComponentsInChildren(type)).ToArray();
+            return gameObjects.SelectMany(g => g.GetComponentsInChildren(type, settings.enableInactiveRenderers)).ToArray();
 
         }
 
@@ -315,7 +342,7 @@ namespace ResoniteUnityExporter
             : new GameObject[] { rootTransform.gameObject };
             foreach (var gameObject in gameObjects)
             {
-                foreach (var component in gameObject.GetComponentsInChildren(type))
+                foreach (var component in gameObject.GetComponentsInChildren(type, settings.enableInactiveRenderers))
                 {
                     OutputHolder<object> output = new OutputHolder<object>();
                     foreach (var e in LookupComponent(component, output))

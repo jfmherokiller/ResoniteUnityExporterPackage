@@ -38,6 +38,7 @@ namespace ResoniteUnityExporter
         bool sendingAvatar = true;
         bool makePackage = false;
         bool includeAssetVariantsInPackage = true;
+        bool enableInactiveRenderers = false;
 
         float nearClip = 0f;
         float prevNearClip = 0f;
@@ -535,6 +536,7 @@ namespace ResoniteUnityExporter
 
         void DrawSettings()
         {
+            enableInactiveRenderers = EditorGUILayout.ToggleLeft("Enable inactive renderers (e.g. hidden clothing)", enableInactiveRenderers);
             sendColliders = EditorGUILayout.ToggleLeft("Send colliders (Not recommend for avatar, it'll auto-add them)", sendColliders);
             sendLights = EditorGUILayout.ToggleLeft("Send lights", sendLights);
 
@@ -708,6 +710,7 @@ namespace ResoniteUnityExporter
                     materialMappings = GetMaterialMappings(),
                     makePackage = makePackage || serverInfo.label == STANDALONE_LABEL, // force package for standalone
                     includeAssetVariantsInPackage = includeAssetVariantsInPackage,
+                    enableInactiveRenderers = enableInactiveRenderers,
                 });
 
                 PrevCurTransferObjectCount = -1;
